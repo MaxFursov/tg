@@ -186,6 +186,53 @@ async def http_send(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+MSG1 = """Доброго дня,
+
+Це компанія «Ділова ковбаса»
+Ми займаємося гуртовими продажами ковбасних виробів вже 13 років, знаходимося у Києві
+Працюємо напряму з виробниками, тому навіть з доставкою ковбасні вироби виходять дешевше"""
+
+MSG2 = """Підкажіть, будь ласка, чи продаєте Ви ковбасні вироби?
+Хочу запропонувати Вам вигідну співпрацю з нами"""
+
+OUTREACH_DELAY = int(os.getenv("OUTREACH_DELAY", 300))  # секунд між повідомленнями (5 хв за замовч.)
+
+
+async def _send_and_record(chat_id: int, chat, text: str):
+    await client.send_message(chat, text)
+    history = CHAT_HISTORY.setdefault(chat_id, [])
+    history.append({"role": "assistant", "content": text})
+    if len(history) > MAX_HISTORY:
+        history[:] = history[-MAX_HISTORY:]
+
+
+async def run_outreach(chat, name: str):
+    try:
+        entity = await client.get_input_entity(chat)
+        chat_id = entity.user_id if hasattr(entity, "user_id") else int(str(chat).lstrip("+"))
+        log.info(f"[Outreach] Старт для {name} ({chat})")
+        await _send_and_record(chat_id, chat, MSG1)
+        log.info(f"[Outreach] Повідомлення 1 надіслано → {name}. Чекаю {OUTREACH_DELAY}с...")
+        await asyncio.sleep(OUTREACH_DELAY)
+        await _send_and_record(chat_id, chat, MSG2)
+        log.info(f"[Outreach] Повідомлення 2 надіслано → {name}.")
+    except Exception as e:
+        log.error(f"[Outreach] Помилка для {chat}: {e}")
+
+
+async def http_outreach(request: web.Request) -> web.Response:
+    if request.headers.get("X-Secret") != API_SECRET:
+        return web.json_response({"error": "unauthorized"}, status=401)
+    data = await request.json()
+    contacts = data.get("contacts", [])  # [{chat, name}]
+    if not contacts:
+        return web.json_response({"error": "no contacts"}, status=400)
+    for c in contacts:
+        asyncio.create_task(run_outreach(c["chat"], c.get("name", c["chat"])))
+    log.info(f"[Outreach] Запущено для {len(contacts)} контактів")
+    return web.json_response({"ok": True, "count": len(contacts)})
+
+
 async def main():
     global BASE_PROMPT, KNOWLEDGE_CHUNKS, BM25
 
@@ -205,6 +252,7 @@ async def main():
 
     app = web.Application()
     app.router.add_post("/send", http_send)
+    app.router.add_post("/outreach", http_outreach)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", 8080))
