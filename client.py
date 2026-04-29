@@ -33,7 +33,7 @@ BM25: BM25Okapi | None = None
 
 # Історія розмов: {chat_id: [{"role": "user"|"assistant", "content": str}]}
 CHAT_HISTORY: dict[int, list[dict]] = {}
-MAX_HISTORY = 10  # повідомлень (туди і назад)
+MAX_HISTORY = 15  # повідомлень (туди і назад)
 
 
 # --- RAG ---
