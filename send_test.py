@@ -10,5 +10,5 @@ API_HASH = os.getenv("API_HASH")
 client = TelegramClient("session", API_ID, API_HASH)
 
 with client:
-    client.send_message("@frsvmx", "Тест підключення Telegram API ✓")
-    print("Повідомлення надіслано на @frsvmx")
+    client.send_message(-4993792827, "Привіт всім! Я — Ділова Ковбаса, ваш новий цифровий асистент. Готовий до роботи 🤝")
+    print("Повідомлення надіслано в групу")
