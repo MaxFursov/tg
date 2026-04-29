@@ -172,6 +172,16 @@ async def http_send(request: web.Request) -> web.Response:
     if not chat or not text:
         return web.json_response({"error": "missing chat or text"}, status=400)
     await client.send_message(chat, text)
+    # Записуємо відправлене повідомлення в історію щоб бот знав що вже писав
+    try:
+        entity = await client.get_input_entity(chat)
+        chat_id = entity.user_id if hasattr(entity, "user_id") else int(chat)
+        history = CHAT_HISTORY.setdefault(chat_id, [])
+        history.append({"role": "assistant", "content": text})
+        if len(history) > MAX_HISTORY:
+            history[:] = history[-MAX_HISTORY:]
+    except Exception:
+        pass
     log.info(f"[API] Надіслано у {chat}: {text}")
     return web.json_response({"ok": True})
 
