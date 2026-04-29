@@ -193,7 +193,6 @@ async def main():
     else:
         log.info("База знань порожня")
 
-    # HTTP сервер для відправки повідомлень без зупинки бота
     app = web.Application()
     app.router.add_post("/send", http_send)
     runner = web.AppRunner(app)
@@ -208,4 +207,23 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    from telethon.errors import AuthKeyDuplicatedError
+
+    RETRY_DELAY = 10
+    MAX_RETRIES = 5
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            asyncio.run(main())
+            break
+        except AuthKeyDuplicatedError:
+            log.critical("Сесія заблокована (AuthKeyDuplicated) — потрібна нова SESSION_STRING. Зупиняюсь.")
+            break
+        except Exception as e:
+            log.error(f"Бот впав (спроба {attempt}/{MAX_RETRIES}): {e}")
+            if attempt < MAX_RETRIES:
+                log.info(f"Перезапуск через {RETRY_DELAY} секунд...")
+                import time; time.sleep(RETRY_DELAY)
+            else:
+                log.critical("Вичерпано всі спроби. Зупиняюсь.")
+                raise
