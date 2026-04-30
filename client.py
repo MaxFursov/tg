@@ -35,6 +35,9 @@ BM25: BM25Okapi | None = None
 CHAT_HISTORY: dict[int, list[dict]] = {}
 MAX_HISTORY = 15  # повідомлень (туди і назад)
 
+# Чати яким вже надіслали скріни сайту
+SENT_PHOTOS: set[int] = set()
+
 
 # --- RAG ---
 
@@ -159,11 +162,12 @@ async def handler(event):
     await event.reply(reply)
     log.info(f"[Відповідь → {name}]: {reply}")
 
-    # Якщо бот згадав сайт — надіслати скріни
-    if "dilovakovbasa.ua" in reply:
+    # Надіслати скріни тільки якщо ще не надсилали цьому чату
+    if "dilovakovbasa.ua" in reply and event.chat_id not in SENT_PHOTOS:
         for img in ["assets/site_1.png", "assets/site_2.png"]:
             if Path(img).exists():
                 await client.send_file(event.chat_id, img)
+        SENT_PHOTOS.add(event.chat_id)
 
 
 API_SECRET = os.getenv("API_SECRET", "secret")
@@ -219,6 +223,7 @@ async def run_outreach(chat, name: str):
         await _send_and_record(chat_id, chat, OUTREACH_MSG)
         if Path(OUTREACH_PHOTO).exists():
             await client.send_file(chat, OUTREACH_PHOTO)
+            SENT_PHOTOS.add(chat_id)
         log.info(f"[Outreach] Надіслано → {name}.")
     except Exception as e:
         log.error(f"[Outreach] Помилка для {chat}: {e}")
