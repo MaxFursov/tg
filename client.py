@@ -8,6 +8,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.tl.functions.contacts import ImportContactsRequest, DeleteContactsRequest
+from telethon.tl.types import InputPhoneContact
 from rank_bm25 import BM25Okapi
 from aiohttp import web
 
@@ -217,8 +219,23 @@ async def _send_and_record(chat_id: int, chat, text: str):
 
 async def run_outreach(chat, name: str):
     try:
-        entity = await client.get_input_entity(chat)
-        chat_id = entity.user_id if hasattr(entity, "user_id") else int(str(chat).lstrip("+"))
+        # Якщо це номер телефону — спочатку імпортуємо як контакт
+        phone = None
+        if str(chat).startswith("+"):
+            phone = str(chat)
+            digits = re.sub(r"\D", "", phone)
+            result = await client(ImportContactsRequest([
+                InputPhoneContact(client_id=0, phone=phone, first_name=name, last_name="")
+            ]))
+            if not result.users:
+                log.warning(f"[Outreach] Номер {phone} не зареєстрований в Telegram, пропускаємо.")
+                return
+            entity = result.users[0]
+            chat_id = entity.id
+        else:
+            entity = await client.get_input_entity(chat)
+            chat_id = entity.user_id if hasattr(entity, "user_id") else int(str(chat).lstrip("+"))
+
         log.info(f"[Outreach] Старт для {name} ({chat})")
         await _send_and_record(chat_id, chat, OUTREACH_MSG)
         if Path(OUTREACH_PHOTO).exists():
