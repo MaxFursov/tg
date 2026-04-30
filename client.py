@@ -192,16 +192,15 @@ async def http_send(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
-MSG1 = """Доброго дня,
+OUTREACH_MSG = """Доброго дня,
 
-Це компанія «Ділова ковбаса»
+Це «Ділова ковбаса»
 Ми займаємося гуртовими продажами ковбасних виробів вже 13 років, знаходимося у Києві
-Працюємо напряму з виробниками, тому навіть з доставкою ковбасні вироби виходять дешевше"""
+Працюємо напряму з виробниками.
 
-MSG2 = """Підкажіть, будь ласка, чи продаєте Ви ковбасні вироби?
-Хочу запропонувати Вам вигідну співпрацю з нами"""
+В нас величезний асортимент. Цікаво переглянути? У вас продуктовий магазин?"""
 
-OUTREACH_DELAY = int(os.getenv("OUTREACH_DELAY", 300))  # секунд між повідомленнями (5 хв за замовч.)
+OUTREACH_PHOTO = "assets/site_2.png"  # скрін з сосисками
 
 
 async def _send_and_record(chat_id: int, chat, text: str):
@@ -217,11 +216,10 @@ async def run_outreach(chat, name: str):
         entity = await client.get_input_entity(chat)
         chat_id = entity.user_id if hasattr(entity, "user_id") else int(str(chat).lstrip("+"))
         log.info(f"[Outreach] Старт для {name} ({chat})")
-        await _send_and_record(chat_id, chat, MSG1)
-        log.info(f"[Outreach] Повідомлення 1 надіслано → {name}. Чекаю {OUTREACH_DELAY}с...")
-        await asyncio.sleep(OUTREACH_DELAY)
-        await _send_and_record(chat_id, chat, MSG2)
-        log.info(f"[Outreach] Повідомлення 2 надіслано → {name}.")
+        await _send_and_record(chat_id, chat, OUTREACH_MSG)
+        if Path(OUTREACH_PHOTO).exists():
+            await client.send_file(chat, OUTREACH_PHOTO)
+        log.info(f"[Outreach] Надіслано → {name}.")
     except Exception as e:
         log.error(f"[Outreach] Помилка для {chat}: {e}")
 
