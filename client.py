@@ -159,6 +159,12 @@ async def handler(event):
     await event.reply(reply)
     log.info(f"[Відповідь → {name}]: {reply}")
 
+    # Якщо бот згадав сайт — надіслати скріни
+    if "dilovakovbasa.ua" in reply:
+        for img in ["assets/site_1.png", "assets/site_2.png"]:
+            if Path(img).exists():
+                await client.send_file(event.chat_id, img)
+
 
 API_SECRET = os.getenv("API_SECRET", "secret")
 
